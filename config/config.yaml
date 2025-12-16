@@ -1,0 +1,98 @@
+# LinkedIn Automation Configuration
+# ⚠️  EDUCATIONAL USE ONLY - DO NOT USE IN PRODUCTION ⚠️
+
+application:
+  name: "LinkedIn Automation PoC"
+  version: "0.1.0"
+  api_port: 8090
+
+database:
+  path: "./data/automation.db"
+  migrations_enabled: true
+
+logging:
+  level: "info"
+  format: "json"
+  output: "./logs/app.log"
+
+stealth:
+  enabled: true
+  techniques:
+    mouse_curves: true
+    typing_variance: true
+    scroll_randomization: true
+    fingerprint_masking: true
+    hover_simulation: true
+    timing_jitter: true
+    error_injection: true
+    idle_behavior: true
+
+rate_limits:
+  daily_connections: 20
+  daily_messages: 10
+  connections_per_hour: 5
+  min_action_delay_seconds: 30
+  max_action_delay_seconds: 180
+  cooldown_after_actions: 3
+
+browser:
+  headless: false
+  viewport_width: 1920
+  viewport_height: 1080
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  disable_images: false
+  timeout_seconds: 30
+
+personas:
+  recruiter:
+    name: "Professional Recruiter"
+    typing_speed_wpm: 65
+    mouse_precision: 87
+    error_rate: 3.5
+    attention_span_seconds: 180
+    break_frequency_actions: 5
+    scroll_impatience: "medium"
+    
+  founder:
+    name: "Startup Founder"
+    typing_speed_wpm: 85
+    mouse_precision: 75
+    error_rate: 5.0
+    attention_span_seconds: 90
+    break_frequency_actions: 8
+    scroll_impatience: "high"
+    
+  sales:
+    name: "Sales Professional"
+    typing_speed_wpm: 72
+    mouse_precision: 82
+    error_rate: 4.0
+    attention_span_seconds: 150
+    break_frequency_actions: 6
+    scroll_impatience: "low"
+
+business_hours:
+  enabled: true
+  timezone: "America/Los_Angeles"
+  start_hour: 9
+  end_hour: 17
+  days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+search:
+  max_results_per_search: 50
+  skip_duplicates: true
+  
+connection:
+  personalized_note_enabled: true
+  note_templates:
+    - "Hi {firstName}, I came across your profile and was impressed by your work at {company}. Would love to connect!"
+    - "Hello {firstName}, I noticed we share an interest in {industry}. Let's connect!"
+    - "Hi {firstName}, fellow {title} here. Would be great to have you in my network!"
+  max_note_length: 300
+
+messaging:
+  follow_up_delay_days: 3
+  max_follow_ups: 1
+  templates:
+    - "Hi {firstName}, thanks for connecting! I'd love to learn more about your work."
+    - "Hey {firstName}, great to connect! Let me know if you'd like to chat sometime."

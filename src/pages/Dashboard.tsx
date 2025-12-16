@@ -9,13 +9,18 @@ import {
   MessageSquare, 
   Clock,
   AlertTriangle,
-  Terminal
+  Terminal,
+  Play,
+  Square
 } from "lucide-react";
 import { StatusCard } from "@/components/StatusCard";
 import { PersonaPanel } from "@/components/PersonaPanel";
 import { AutomationFlow } from "@/components/AutomationFlow";
 import { StealthTechniques } from "@/components/StealthTechniques";
 import { ActivityLog } from "@/components/ActivityLog";
+import { apiClient, type SystemStatus, type Stats, type ActivityLogEntry } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
   const [currentStep, setCurrentStep] = useState(3);
@@ -25,14 +30,92 @@ const Dashboard = () => {
     mousePrecision: 87,
     errorRate: 3.5,
   });
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  // Simulate step progression
+  // Fetch status and stats periodically
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStep((prev) => (prev >= 5 ? 1 : prev + 1));
-    }, 4000);
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Every 5 seconds
     return () => clearInterval(interval);
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [status, statistics, logs] = await Promise.all([
+        apiClient.getStatus(),
+        apiClient.getStats(),
+        apiClient.getActivity(),
+      ]);
+      
+      setSystemStatus(status);
+      setStats(statistics);
+      setActivityLogs(logs);
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    }
+  };
+
+  const handleStart = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.start();
+      toast({
+        title: "Success",
+        description: response.message || "Automation started successfully",
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start automation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStop = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.stop();
+      toast({
+        title: "Success",
+        description: response.message || "Automation stopped successfully",
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to stop automation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePersonaChange = async (persona: string) => {
+    setSelectedPersona(persona);
+    try {
+      await apiClient.setPersona(persona);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to change persona:", error);
+    }
+  };
+
+  // Format cooldown time
+  const formatCooldown = (seconds: number): string => {
+    if (seconds <= 0) return "Ready";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
 
   const stealthTechniques = [
     { id: "mouse-curves", label: "Mouse Curves", description: "Bézier curve interpolation", icon: Globe, enabled: true },
@@ -76,11 +159,33 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-1.5">
-              <span className="h-2 w-2 animate-pulse-glow rounded-full bg-success" />
+              <span className={`h-2 w-2 animate-pulse-glow rounded-full ${systemStatus?.running ? 'bg-success' : 'bg-muted-foreground'}`} />
               <span className="font-mono text-xs text-muted-foreground">
-                System Active
+                {systemStatus?.running ? 'System Active' : 'System Idle'}
               </span>
             </div>
+            
+            {systemStatus?.running ? (
+              <Button
+                onClick={handleStop}
+                disabled={isLoading}
+                variant="destructive"
+                size="sm"
+              >
+                <Square className="h-4 w-4 mr-2" />
+                Stop
+              </Button>
+            ) : (
+              <Button
+                onClick={handleStart}
+                disabled={isLoading}
+                variant="default"
+                size="sm"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Start
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -91,31 +196,31 @@ const Dashboard = () => {
         <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatusCard
             title="Browser Session"
-            value="Active"
+            value={systemStatus?.running ? "Active" : "Idle"}
             icon={Globe}
-            status="active"
+            status={systemStatus?.running ? "active" : "inactive"}
             subtitle="Chromium 120.0"
           />
           <StatusCard
             title="Logged In"
-            value="Yes"
+            value={systemStatus?.logged_in ? "Yes" : "No"}
             icon={UserCheck}
-            status="active"
-            subtitle="Session valid"
+            status={systemStatus?.logged_in ? "active" : "inactive"}
+            subtitle={systemStatus?.logged_in ? "Session valid" : "Not connected"}
           />
           <StatusCard
             title="Persona Active"
-            value={selectedPersona.charAt(0).toUpperCase() + selectedPersona.slice(1)}
+            value={systemStatus?.persona || selectedPersona.charAt(0).toUpperCase() + selectedPersona.slice(1)}
             icon={Bot}
             status="primary"
             subtitle="Behavior loaded"
           />
           <StatusCard
             title="Stealth Mode"
-            value="Enabled"
+            value={systemStatus?.stealth ? "Enabled" : "Disabled"}
             icon={Shield}
-            status="active"
-            subtitle="3/4 techniques"
+            status={systemStatus?.stealth ? "active" : "inactive"}
+            subtitle="8 techniques"
           />
         </div>
 
@@ -123,24 +228,24 @@ const Dashboard = () => {
         <div className="mb-6 grid grid-cols-3 gap-4">
           <StatusCard
             title="Connections Sent"
-            value="47"
+            value={stats?.connections_sent || 0}
             icon={Send}
             status="primary"
-            subtitle="Daily limit: 100"
+            subtitle={`Daily limit: ${stats?.daily_limit?.connections || 20}`}
           />
           <StatusCard
             title="Messages Sent"
-            value="23"
+            value={stats?.messages_sent || 0}
             icon={MessageSquare}
             status="primary"
-            subtitle="Daily limit: 50"
+            subtitle={`Daily limit: ${stats?.daily_limit?.messages || 10}`}
           />
           <StatusCard
             title="Cooldown Time"
-            value="2m 34s"
+            value={formatCooldown(stats?.cooldown_seconds || 0)}
             icon={Clock}
-            status="warning"
-            subtitle="Next action at 14:38"
+            status={stats && stats.cooldown_seconds > 0 ? "warning" : "active"}
+            subtitle={stats && stats.cooldown_seconds > 0 ? "Action in cooldown" : "Ready to act"}
           />
         </div>
 
@@ -150,7 +255,7 @@ const Dashboard = () => {
           <div className="space-y-6">
             <PersonaPanel
               selectedPersona={selectedPersona}
-              onPersonaChange={setSelectedPersona}
+              onPersonaChange={handlePersonaChange}
               settings={settings}
               onSettingsChange={setSettings}
             />
@@ -160,7 +265,7 @@ const Dashboard = () => {
           {/* Right Column */}
           <div className="space-y-6">
             <AutomationFlow currentStep={currentStep} />
-            <ActivityLog entries={undefined as any} />
+            <ActivityLog entries={activityLogs} />
           </div>
         </div>
       </main>
